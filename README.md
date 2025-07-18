@@ -2,7 +2,7 @@
 
 <p align="center">
    <a href="https://wa.me/+6289514960304" target="_blank">
-  <img src="fathur.jpg" width="750" alt="Foto 2"/>
+  <img src="Foto 2.jpg" width="750" alt="Foto 2"/>
   </a>
 </p>
 <p align="center">
