@@ -2,14 +2,14 @@
 
 <p align="center">
    <a href="https://wa.me/+6289514960304" target="_blank">
-  <img src="Foto 2.jpg" width="750" alt="Foto 2"/>
+  <img src="Foto.jpg" width="750" alt="Foto 2"/>
   </a>
 </p>
 <p align="center">
   <em>Our Developers - Passionate, Dedicated, and Ready to Code!</em>
     <em>For Busssiness Incuiris Contact:</em>
      <a href="https://wa.me/+6289514960304" target="_blank">
-        Mr.  Ghoo
+        Mr.  Breeee
   </a>
 </p>
 
