@@ -2,14 +2,14 @@
 
 <p align="center">
    <a href="https://wa.me/+6289514960304" target="_blank">
-  <img src="/images/Foto.jpg" width="750" alt="Foto 2"/>
-  </a>
+     <img src="images/Foto.jpg" width="750" alt="Foto 2"/>
+   </a>
 </p>
 <p align="center">
-  <em>Our Developers - Passionate, Dedicated, and Ready to Code!</em>
-    <em>For Busssiness Incuiris Contact:</em>
-     <a href="https://wa.me/+6289514960304" target="_blank">
-        Mr.  Breeee
+  <em>Our Developers - Passionate, Dedicated, and Ready to Code!</em><br>
+  <em>For Business Inquiries Contact:</em>
+  <a href="https://wa.me/+6289514960304" target="_blank">
+    Mr. Breeee
   </a>
 </p>
 
