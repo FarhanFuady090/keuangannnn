@@ -59,14 +59,14 @@
                     </x-primary-button>
                 </a>
             </div>
-            <div class="bg-white rounded-lg shadow-md p-6">
+            {{-- <div class="bg-white rounded-lg shadow-md p-6">
                 <h3 class="text-xl font-semibold mb-2">TU UNIT</h3>
                 <a href="{{ route('tuunit.login') }}">
                     <x-primary-button class="ms-3">
                         {{ __('Log in') }}
                     </x-primary-button>
                 </a>
-            </div>
+            </div> --}}
         </div>
     </main>
     <div class="fixed bottom-0 w-full">
