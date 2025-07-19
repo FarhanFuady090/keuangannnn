@@ -12,7 +12,7 @@
     <img src="{{ asset('images/logo-yysn.png') }}" alt="Application Logo" class="h-5 mr-3">
 
     <div class="text-white text-sm">
-        tupusat Nurul Huda
+        Yayasan Nurul Huda
     </div>
 </div>
 <div class="mx-auto mt-10 px-6" style="max-width: 1200px">
