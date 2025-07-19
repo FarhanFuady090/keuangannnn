@@ -14,6 +14,10 @@ class Siswa extends Model
     protected $primaryKey = 'id';
     protected $fillable = ['id', 'nis', 'nisn', 'nama', 'jenis_kelamin', 'kelas_id', 'agama', 'namaOrtu', 'alamatOrtu', 'noTelp', 'email', 'unitpendidikan_id', 'unitpendidikan_idInformal', 'unitpendidikan_idPondok', 'status'];
 
+    public function tagihans()
+    {
+        return $this->hasMany(Tagihan::class, 'siswa_id');
+    }
     public function kelas()
     {
         return $this->belongsTo(Kelas::class);

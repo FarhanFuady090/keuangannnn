@@ -11,6 +11,7 @@ class Tagihan extends Model
 
     protected $table = 'tagihan';
 
+
     protected $fillable = [
         'siswa_id',
         'jenis_pembayaran_id',
@@ -21,6 +22,8 @@ class Tagihan extends Model
         'status',
         'tanggal_bayar',
     ];
+
+ 
 
     public function siswa()
     {

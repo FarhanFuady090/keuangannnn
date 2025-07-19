@@ -1,14 +1,14 @@
 <?php
 
-use App\Http\Controllers\yayasan\auth\LoginController;
-use App\Http\Controllers\yayasan\auth\yayasanAuthenticatedSessionController;
-use App\Http\Controllers\yayasan\auth\ConfirmablePasswordController;
-use App\Http\Controllers\yayasan\auth\EmailVerificationNotificationController;
-use App\Http\Controllers\yayasan\auth\EmailVerificationPromptController;
-use App\Http\Controllers\yayasan\auth\NewPasswordController;
-use App\Http\Controllers\yayasan\auth\PasswordController;
-use App\Http\Controllers\yayasan\auth\PasswordResetLinkController;
-use App\Http\Controllers\yayasan\auth\VerifyEmailController;
+use App\Http\Controllers\yayasan\Auth\LoginController;
+use App\Http\Controllers\yayasan\Auth\yayasanAuthenticatedSessionController;
+use App\Http\Controllers\yayasan\Auth\ConfirmablePasswordController;
+use App\Http\Controllers\yayasan\Auth\EmailVerificationNotificationController;
+use App\Http\Controllers\yayasan\Auth\EmailVerificationPromptController;
+use App\Http\Controllers\yayasan\Auth\NewPasswordController;
+use App\Http\Controllers\yayasan\Auth\PasswordController;
+use App\Http\Controllers\yayasan\Auth\PasswordResetLinkController;
+use App\Http\Controllers\yayasan\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Route;
 
 

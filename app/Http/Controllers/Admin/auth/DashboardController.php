@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin\auth;
+namespace App\Http\Controllers\Admin\Auth;
 
 use App\Models\Kelas;
 use App\Models\User;

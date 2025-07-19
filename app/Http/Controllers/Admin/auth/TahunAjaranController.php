@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin\auth;
+namespace App\Http\Controllers\Admin\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\TahunAjaran;
@@ -24,7 +24,7 @@ class TahunAjaranController extends Controller
 
         $awal = \Carbon\Carbon::parse($request->awal);
         $bulan = $awal->month;
-    
+
         if ($bulan >= 7 && $bulan <= 12) {
             $semester = 'Ganjil';
             $akhir = $awal->copy()->endOfYear(); // 31 Desember
@@ -41,7 +41,7 @@ class TahunAjaranController extends Controller
         if (TahunAjaran::where('awal', $request->awal)->exists()) {
             return redirect()->back()->withErrors(['awal' => 'Tahun Awal telah digunakan.'])->withInput();
         }
-        
+
         $tahunajaran = new TahunAjaran();
         $tahunajaran->tahun_ajaran = $tahun_ajaran;
         $tahunajaran->awal = $awal;
@@ -85,7 +85,7 @@ class TahunAjaranController extends Controller
     } else {
         return redirect()->back()->withErrors(['awal' => 'Tanggal tidak valid'])->withInput();
     }
-    
+
             // Cek Tahun Awal
             if (TahunAjaran::where('awal', $request->awal)->where('id', '!=', $id)->exists()) {
                 return redirect()->back()->withErrors(['awal' => 'Tahun Awal telah digunakan.'])->withInput();

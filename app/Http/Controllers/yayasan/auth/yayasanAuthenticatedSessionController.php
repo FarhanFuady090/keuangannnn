@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\yayasan\auth;
+namespace App\Http\Controllers\yayasan\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\yayasanRequest;

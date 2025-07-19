@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\tupusat\auth;
+namespace App\Http\Controllers\tupusat\Auth;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Auth\Events\PasswordReset;

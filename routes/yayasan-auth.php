@@ -59,6 +59,8 @@ Route::prefix('yayasan')->middleware('auth:yayasan', 'verified')->group(function
             Route::get('/api/tagihan/jenispembayaran', [LapTagihanController::class, 'getJenisPembayaran'])->name('yayasan.api.jenispembayaran');
             Route::get('/api/tagihan/siswa', [LapTagihanController::class, 'getSiswa'])->name('yayasan.api.siswa');
             Route::get('/api/kelas', [LapTagihanController::class, 'getKelasByUnit'])->name('yayasan.api.kelas');
+            Route::get('/api/unit-by-payment', [LapTagihanController::class, 'getUnitByPayment'])->name('yayasan.api.unit-by-payment');
+            Route::get('/api/all-units', [LapTagihanController::class, 'getAllUnits'])->name('yayasan.api.all-units');
             Route::get('/get-kelas-by-jenis', [LapTagihanController::class, 'getKelasByJenis'])->name('get.kelas.by.jenis');
         });
     });

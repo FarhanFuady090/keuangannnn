@@ -1,11 +1,11 @@
 <?php
 
-use App\Http\Controllers\admin\Auth\LoginController;
-use App\Http\Controllers\admin\Auth\RegisteredUserController;
+use App\Http\Controllers\Admin\Auth\LoginController;
+use App\Http\Controllers\Admin\Auth\RegisteredUserController;
 use App\Http\Controllers\UserController;
-use App\Http\Controllers\admin\Auth\SiswaController;
-use App\Http\Controllers\admin\Auth\KelasController;
-use App\Http\Controllers\admin\Auth\KasController;
+use App\Http\Controllers\Admin\Auth\SiswaController;
+use App\Http\Controllers\Admin\Auth\KelasController;
+use App\Http\Controllers\Admin\Auth\KasController;
 use App\Http\Controllers\Admin\Auth\UnitPendidikanController;
 use App\Http\Controllers\Admin\Auth\DashboardController;
 use App\Http\Controllers\Admin\Auth\TahunAjaranController;

@@ -15,6 +15,7 @@ use App\Exports\TagihanExport; // This will be the custom export class
 use App\Exports\TagihanSiswaExport;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Str;
@@ -22,7 +23,7 @@ use Illuminate\Support\Facades\DB;
 
 class LapTagihanController extends Controller
 {
-    // Daftar Siswa
+    // main data
     public function index(Request $request)
     {
         $unit = $request->get('unitpendidikan_id');
@@ -31,56 +32,43 @@ class LapTagihanController extends Controller
         $tahunAjaran = $request->get('tahun_ajaran');
         $semester = $request->get('semester');
         $jenisPembayaranId = $request->get('jenis_pembayaran_id');
-        $type = $request->filled('type') ? $request->get('type') : null;
+        $type = $request->filled('type') ? strtolower(trim($request->get('type'))) : null;
+
         $jenisPembayaranAktif = JenisPembayaran::query()
-            ->when($type, function ($query) use ($type) {
-                $query->where('type', $type);
-            })
+            ->when($type, fn($query) => $query->where('type', $type))
             ->with('unitPendidikan')
             ->get();
-        $type = trim(strtolower($request->get('type') ?? ''));
 
-        // Ambil semua tipe unik dari tabel jenis_pembayarans
         $tipePembayaranList = JenisPembayaran::select('type')->distinct()->pluck('type');
 
-
-        $querySiswa = Siswa::with('unitPendidikan', 'kelas');
-
-        if ($unit) {
-            $querySiswa->where('unitpendidikan_id', $unit);
-        }
-
-        if ($kelas) {
-            $querySiswa->where('kelas_id', $kelas);
-        }
-
-        if ($search) {
-            $querySiswa->where(function ($q) use ($search) {
-                $q->where('nama', 'like', "%{$search}%")
-                    ->orWhere('nis', 'like', "%{$search}%");
-            });
-        }
-
-        $siswas = $querySiswa->paginate(15)->withQueryString();
-        $queryTagihan = Tagihan::query()
-            ->with(['siswa.kelas', 'unitPendidikan'])
-            ->when($request->unitpendidikan_id, function ($q) use ($request) {
-                $q->whereHas('siswa', function ($query) use ($request) {
-                    $query->where('unitpendidikan_id', $request->unitpendidikan_id);
-                });
-            })
-            ->when(!empty($type), function ($q) use ($type) {
-                $q->whereHas('jenispembayaran', function ($sub) use ($type) {
-                    $sub->where('type', $type);
-                });
-            })
-            ->when($jenisPembayaranId, function ($q) use ($jenisPembayaranId) {
-                $q->where('jenis_pembayaran_id', $jenisPembayaranId);
-            })
+        // Query dasar untuk tagihan dengan filter
+        $queryTagihan = Tagihan::with(['siswa.kelas', 'unitPendidikan'])
+            ->when($unit, fn($q) => $q->whereHas('siswa', fn($sub) => $sub->where('unitpendidikan_id', $unit)))
             ->when($kelas, fn($q) => $q->whereHas('siswa', fn($sub) => $sub->where('kelas_id', $kelas)))
-            ->when($search, fn($q) => $q->whereHas('siswa', fn($sub) => $sub->where('nama', 'like', "%{$search}%")->orWhere('nis', 'like', "%{$search}%")));
+            ->when($type, fn($q) => $q->whereHas('jenispembayaran', fn($sub) => $sub->where('type', $type)))
+            ->when($jenisPembayaranId, fn($q) => $q->where('jenis_pembayaran_id', $jenisPembayaranId))
+            ->when($search, fn($q) => $q->whereHas(
+                'siswa',
+                fn($sub) =>
+                $sub->where('nama', 'like', "%{$search}%")
+                    ->orWhere('nis', 'like', "%{$search}%")
+            ));
 
-        // Filter tanggal bayar manual
+        // Ambil ID siswa yang memiliki tagihan sesuai filter
+        $siswaIdsWithTagihan = $queryTagihan->pluck('siswa_id')->unique();
+
+        // Query siswa yang hanya menampilkan siswa yang memiliki tagihan
+        $querySiswa = Siswa::with('unitPendidikan', 'kelas')
+            ->whereIn('id', $siswaIdsWithTagihan) // Filter hanya siswa yang memiliki tagihan
+            ->when($unit, fn($q) => $q->where('unitpendidikan_id', $unit))
+            ->when($kelas, fn($q) => $q->where('kelas_id', $kelas))
+            ->when($search, fn($q) => $q->where(function ($q2) use ($search) {
+                $q2->where('nama', 'like', "%{$search}%")
+                    ->orWhere('nis', 'like', "%{$search}%");
+            }));
+
+        $siswas = $querySiswa->get();
+
         if ($request->filled('tanggal_awal') && $request->filled('tanggal_akhir')) {
             $tanggalAwal = Carbon::parse($request->tanggal_awal)->startOfDay();
             $tanggalAkhir = Carbon::parse($request->tanggal_akhir)->endOfDay();
@@ -101,88 +89,15 @@ class LapTagihanController extends Controller
         }
 
         $tagihanFiltered = $queryTagihan->get();
-        // Query dasar tanpa filter tanggal bayar
-        // Buat ulang query dasar TANPA filter tanggal bayar
-        $queryTagihanTotal = Tagihan::with(['siswa.kelas', 'unitPendidikan'])
-            ->when($request->unitpendidikan_id, function ($q) use ($request) {
-                $q->whereHas('siswa', function ($query) use ($request) {
-                    $query->where('unitpendidikan_id', $request->unitpendidikan_id);
-                });
-            })
-            ->when(!empty($type), function ($q) use ($type) {
-                $q->whereHas('jenispembayaran', function ($sub) use ($type) {
-                    $sub->where('type', $type);
-                });
-            })
-            ->when($jenisPembayaranId, function ($q) use ($jenisPembayaranId) {
-                $q->where('jenis_pembayaran_id', $jenisPembayaranId);
-            })
-            ->when($kelas, fn($q) => $q->whereHas('siswa', fn($sub) => $sub->where('kelas_id', $kelas)))
-            ->when($search, fn($q) => $q->whereHas('siswa', fn($sub) => $sub->where('nama', 'like', "%{$search}%")->orWhere('nis', 'like', "%{$search}%")));
 
-        $tagihanTotal = $queryTagihanTotal->get(); // tanpa filter tanggal bayar
+        $tagihanTotal = (clone $queryTagihan)->get();
 
-        // Tagihan TERBAYAR (dengan filter tanggal bayar)
-        $tagihanTerbayar = $queryTagihan->get(); // ini pakai filter tanggal bayar yang aktif
         $tagihan = Tagihan::with(['siswa', 'jenispembayaran'])
-            ->when($jenisPembayaranId, function ($q) use ($jenisPembayaranId) {
-                $q->where('jenis_pembayaran_id', $jenisPembayaranId);
-            })
-            ->when($type, function ($q) use ($type) {
-                $q->whereHas('jenispembayaran', function ($q2) use ($type) {
-                    $q2->where('type', $type);
-                });
-            })
+            ->when($jenisPembayaranId, fn($q) => $q->where('jenis_pembayaran_id', $jenisPembayaranId))
+            ->when($type, fn($q) => $q->whereHas('jenispembayaran', fn($q2) => $q2->where('type', $type)))
             ->get();
-        $filteredTagihan = $tagihan->filter(function ($item) use ($request) {
-            if ($request->filled('unitpendidikan_id')) {
-                return $item->siswa && $item->siswa->unitpendidikan_id == $request->unitpendidikan_id;
-            }
-            return true;
-        });
 
-        $rekapPerJenis = $filteredTagihan->groupBy('jenis_pembayaran_id')->map(function ($group) {
-            $first = $group->first();
-            return [
-                'nama' => $first->jenispembayaran->nama_pembayaran,
-                'type' => $first->jenispembayaran->type,
-                'unit' => optional($first->siswa->unitpendidikan)->namaUnit ?? '-',
-                'total_terbayar' => $group->sum('jumlah_dibayar'),
-                'total_tagihan' => $group->sum('nominal'),
-                'belum_terbayar' => $group->sum('nominal') - $group->sum('jumlah_dibayar'),
-            ];
-        });
-        // Manual pagination
-        $currentPage = LengthAwarePaginator::resolveCurrentPage();
-        $perPage = 1;
-        $rekapCollection = collect($rekapPerJenis->values());
-        $rekapPaginated = new LengthAwarePaginator(
-            $rekapCollection->forPage($currentPage, $perPage),
-            $rekapCollection->count(),
-            $perPage,
-            $currentPage,
-            ['path' => request()->url(), 'query' => request()->query()]
-        );
-
-        // Hitung total per jenis pembayaran
-        $totalPerJenisPembayaran = $tagihanTotal
-            ->groupBy('jenis_pembayaran_id')
-            ->map(function ($tagihanGroup) use ($tagihanTerbayar) {
-                $jenisId = $tagihanGroup->first()->jenis_pembayaran_id;
-                $totalTagihan = $tagihanGroup->sum('nominal');
-
-                $totalTerbayar = $tagihanTerbayar
-                    ->where('jenis_pembayaran_id', $jenisId)
-                    ->sum('jumlah_dibayar');
-
-                $totalBelumTerbayar = $totalTagihan - $totalTerbayar;
-
-                return [
-                    'total_tagihan' => $totalTagihan,
-                    'total_terbayar' => $totalTerbayar,
-                    'total_belum_terbayar' => $totalBelumTerbayar,
-                ];
-            });
+        $filteredTagihan = $tagihan->filter(fn($item) => !$unit || ($item->siswa && $item->siswa->unitpendidikan_id == $unit));
 
         $bulanList = [
             'Januari',
@@ -200,32 +115,100 @@ class LapTagihanController extends Controller
         ];
 
         $pembayaranData = [];
-
         foreach ($siswas as $siswa) {
             $dataPerBulan = [];
             foreach ($bulanList as $bulan) {
                 $tagihan = $tagihanFiltered->where('siswa_id', $siswa->id)->where('bulan', $bulan);
-
-                $totalTagihan = $tagihan->sum('nominal');
-                $totalTerbayar = $tagihan->sum('jumlah_dibayar');
-                $tanggalBayar = $tagihan->max('tanggal_bayar');
-
                 $dataPerBulan[$bulan] = [
-                    'tagihan' => $totalTagihan,
-                    'terbayar' => $totalTerbayar,
-                    'belum' => $totalTagihan - $totalTerbayar,
-                    'tanggal_bayar' => $tanggalBayar,
+                    'tagihan' => $tagihan->sum('nominal'),
+                    'terbayar' => $tagihan->sum('jumlah_dibayar'),
+                    'belum' => $tagihan->sum('nominal') - $tagihan->sum('jumlah_dibayar'),
+                    'tanggal_bayar' => $tagihan->max('tanggal_bayar'),
                 ];
             }
             $pembayaranData[$siswa->id] = $dataPerBulan;
         }
 
+        // Lakukan pemrosesan seperti mapping, filtering, pengelompokan, dsb.
+        $processedSiswas = $siswas->map(function ($siswa) use ($pembayaranData) {
+            // Tambahkan data tambahan jika perlu
+            $siswa->pembayaran = $pembayaranData[$siswa->id] ?? [];
+            return $siswa;
+        });
+
+        // SISWA PAGINATION
+        $currentPageSiswa = LengthAwarePaginator::resolveCurrentPage('page');
+        $perPageSiswa = 15;
+
+        $currentItemsSiswa = $siswas->slice(($currentPageSiswa - 1) * $perPageSiswa, $perPageSiswa)->values();
+
+        $siswaQueryString = $request->except('rekap_page'); // Hanya hapus rekap_page
+
+        $siswas = new LengthAwarePaginator(
+            $currentItemsSiswa,
+            $siswas->count(),
+            $perPageSiswa,
+            $currentPageSiswa,
+            ['pageName' => 'page', 'path' => request()->url(), 'query' => $siswaQueryString]
+        );
+
+        $tagihan = $queryTagihan->get();
+
+        $grouped = $filteredTagihan->groupBy('jenis_pembayaran_id');
+
+        // Ubah ke indexed array agar bisa di-slice
+        $groupedArray = $grouped->all();
+        $rekapCollection = collect($groupedArray);
+
+        $currentPageRekap = LengthAwarePaginator::resolveCurrentPage('rekap_page');
+        $perPageRekap = 1;
+
+        // Slice sebelum diproses map
+        $currentItemsRaw = $rekapCollection->slice(($currentPageRekap - 1) * $perPageRekap, $perPageRekap);
+
+        $totalPerJenisPembayaran = $tagihanTotal->groupBy('jenis_pembayaran_id')->map(function ($tagihanGroup) use ($tagihanFiltered) {
+            $jenisId = $tagihanGroup->first()->jenis_pembayaran_id;
+            $totalTagihan = $tagihanGroup->sum('nominal');
+            $totalTerbayar = $tagihanFiltered->where('jenis_pembayaran_id', $jenisId)->sum('jumlah_dibayar');
+            return [
+                'total_tagihan' => $totalTagihan,
+                'total_terbayar' => $totalTerbayar,
+                'total_belum_terbayar' => $totalTagihan - $totalTerbayar,
+            ];
+        });
+
+        $rekapPerJenis = $filteredTagihan->groupBy('jenis_pembayaran_id')->map(function ($group) {
+            $first = $group->first();
+            return [
+                'nama' => $first->jenispembayaran->nama_pembayaran,
+                'type' => $first->jenispembayaran->type,
+                'unit' => optional($first->siswa->unitpendidikan)->namaUnit ?? '-',
+                'total_terbayar' => $group->sum('jumlah_dibayar'),
+                'total_tagihan' => $group->sum('nominal'),
+                'belum_terbayar' => $group->sum('nominal') - $group->sum('jumlah_dibayar'),
+            ];
+        })->values();
+
+        // ✅ Perbaiki key yang digunakan untuk mengambil data dari $rekapPerJenis
+        $processedTagihan = $tagihan->map(function ($tagihan) use ($rekapPerJenis) {
+            $tagihan->pembayaran = $rekapPerJenis[$tagihan->jenis_pembayaran_id] ?? [];
+            return $tagihan;
+        });
+
+        $rekapQueryString = $request->except('page'); // Hanya hapus siswa page
+
+        $paginatedRekapPerJenis = new LengthAwarePaginator(
+            $currentItemsRaw,
+            $rekapCollection->count(),
+            $perPageRekap,
+            $currentPageRekap,
+            ['pageName' => 'rekap_page', 'path' => request()->url(), 'query' => $rekapQueryString]
+        );
+
         $unitPendidikanList = UnitPendidikan::all();
         $jenisPembayaran = JenisPembayaran::where('status', 'Aktif')->with('unitPendidikan')->get();
-        // Ambil list type dari Jenis Pembayaran
         $typeList = JenisPembayaran::select('type')->distinct()->pluck('type');
 
-        // Kelas berdasarkan jenis pembayaran atau unit pendidikan
         $kelasList = collect();
         if ($jenisPembayaranId) {
             $selectedJenis = JenisPembayaran::find($jenisPembayaranId);
@@ -236,9 +219,10 @@ class LapTagihanController extends Controller
             $kelasList = Kelas::where('unitpendidikan_id', $unit)->get();
         }
 
-
         return view('yayasan.laporan.tagihan.index', compact(
             'siswas',
+            'tagihan',
+            'paginatedRekapPerJenis',
             'jenisPembayaranAktif',
             'unitPendidikanList',
             'kelasList',
@@ -251,7 +235,6 @@ class LapTagihanController extends Controller
             'jenisPembayaranId',
             'semester',
             'type',
-            'rekapPaginated',
             'totalPerJenisPembayaran',
             'jenisPembayaran',
             'tipePembayaranList',
@@ -259,6 +242,75 @@ class LapTagihanController extends Controller
         ));
     }
 
+    /**
+     * Get unit pendidikan berdasarkan jenis pembayaran
+     */
+    public function getUnitByPayment(Request $request)
+    {
+        try {
+            $jenisPembayaranId = $request->input('jenis_pembayaran_id');
+
+            if (!$jenisPembayaranId) {
+                return response()->json([]);
+            }
+
+            // Debug: Log request
+            \Log::info('Request jenis pembayaran ID: ' . $jenisPembayaranId);
+
+            // Cek apakah jenis pembayaran ada
+            $jenisPembayaran = JenisPembayaran::find($jenisPembayaranId);
+            if (!$jenisPembayaran) {
+                \Log::warning('Jenis pembayaran tidak ditemukan: ' . $jenisPembayaranId);
+                return response()->json([]);
+            }
+
+            // Ambil unit pendidikan yang terkait dengan jenis pembayaran
+            // Sesuaikan dengan nama tabel yang benar (cek nama tabel di database)
+            $units = UnitPendidikan::whereHas('siswa', function ($query) use ($jenisPembayaranId) {
+                $query->whereHas('tagihan', function ($subQuery) use ($jenisPembayaranId) {
+                    $subQuery->where('jenis_pembayaran_id', $jenisPembayaranId);
+                });
+            })
+                ->distinct()
+                ->select('id', 'namaUnit') // Pastikan kolom ini sesuai dengan database
+                ->orderBy('namaUnit')
+                ->get();
+
+            // Debug: Log hasil query
+            \Log::info('Units found: ' . $units->count());
+            \Log::info('Units data: ' . $units->toJson());
+
+            return response()->json($units);
+        } catch (\Exception $e) {
+            \Log::error('Error in getUnitByPayment: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
+            return response()->json(['error' => 'Gagal mengambil data unit pendidikan'], 500);
+        }
+    }
+
+    /**
+     * Get semua unit pendidikan
+     */
+    public function getAllUnits(Request $request)
+    {
+        try {
+            $units = UnitPendidikan::select('id', 'namaUnit') // Sesuaikan dengan kolom yang ada
+                ->orderBy('namaUnit')
+                ->get();
+
+            // Debug: Log hasil
+            \Log::info('All units found: ' . $units->count());
+
+            return response()->json($units);
+        } catch (\Exception $e) {
+            \Log::error('Error in getAllUnits: ' . $e->getMessage());
+            return response()->json(['error' => 'Gagal mengambil data unit pendidikan'], 500);
+        }
+    }
+
+    /**
+     * Get semua kelas by unit
+     */
     public function getKelasByJenis(Request $request)
     {
         $jenis = JenisPembayaran::find($request->jenis_pembayaran_id);
@@ -272,161 +324,9 @@ class LapTagihanController extends Controller
         return response()->json($kelas);
     }
 
-
-
-    public function create(Request $request)
-    {
-        $unitpendidikan = UnitPendidikan::all();
-        $tahunAjaran = TahunAjaran::orderBy('tahun_ajaran', 'desc')->get();
-
-        $selectedUnit = $request->get('unit');
-        $selectedTahun = $request->get('tahun');
-        $selectedKelas = $request->get('kelas');
-
-        $jenisPembayaran = [];
-        $siswaList = [];
-        $kelasList = collect();
-
-        if ($selectedUnit) {
-            $kelasList = Kelas::where('unitpendidikan_id', $selectedUnit)->get();
-        }
-
-        $jenisPembayaran = JenisPembayaran::where('idunitpendidikan', $selectedUnit)
-            ->where('id_tahunajaran', $selectedTahun)
-            ->where('status', 'Aktif')
-            ->get();
-
-        $query = Siswa::where('unitpendidikan_id', $selectedUnit)
-            ->where('status', 'Aktif');
-
-        if ($selectedKelas) {
-            $query->where('kelas_id', $selectedKelas);
-        }
-
-        $siswaList = $query->get();
-
-        return view('yayasan.laporan.tagihan.create', compact(
-            'unitpendidikan',
-            'tahunAjaran',
-            'jenisPembayaran',
-            'siswaList',
-            'kelasList',
-            'selectedUnit',
-            'selectedTahun',
-            'selectedKelas'
-        ));
-    }
-
-    public function store(Request $request)
-    {
-        $request->validate([
-            'jenis_pembayaran_id' => 'required|exists:jenispembayaran,id',
-            'tahun_ajaran_id' => 'required|exists:tahunajaran,id',
-            'siswa_ids' => 'required|array|min:1', // Pastikan ada minimal 1 siswa yang dipilih
-            'siswa_ids.*' => 'exists:siswas,id',  // Validasi setiap siswa ID yang dipilih
-        ]);
-
-        $jenisPembayaran = JenisPembayaran::findOrFail($request->jenis_pembayaran_id);
-        $type = $jenisPembayaran->type;
-
-        $bulanMap = [
-            'Januari',
-            'Februari',
-            'Maret',
-            'April',
-            'Mei',
-            'Juni',
-            'Juli',
-            'Agustus',
-            'September',
-            'Oktober',
-            'November',
-            'Desember'
-        ];
-
-        $nominal = $jenisPembayaran->nominal_jenispembayaran; // nominal pembayaran
-
-        // Proses tagihan hanya untuk siswa yang dipilih
-        foreach ($request->siswa_ids as $siswaId) {
-            foreach ($request->tagihan as $siswaTagihanId => $inputNominal) {
-                if ($siswaId == $siswaTagihanId && $nominal > 0) {
-                    switch ($type) {
-                        case 'Bulanan':
-                            foreach ($bulanMap as $bulan) {
-                                Tagihan::create([
-                                    'siswa_id' => $siswaId,
-                                    'jenis_pembayaran_id' => $jenisPembayaran->id,
-                                    'tahun_ajaran_id' => $request->tahun_ajaran_id,
-                                    'bulan' => $bulan,
-                                    'nominal' => $nominal,
-                                    'jumlah_dibayar' => 0,
-                                    'status' => 'belum'
-                                ]);
-                            }
-                            break;
-
-                        case 'Semester':
-                            foreach (['Semester 1', 'Semester 2'] as $semesterBulan) {
-                                Tagihan::create([
-                                    'siswa_id' => $siswaId,
-                                    'jenis_pembayaran_id' => $jenisPembayaran->id,
-                                    'tahun_ajaran_id' => $request->tahun_ajaran_id,
-                                    'bulan' => $semesterBulan,
-                                    'nominal' => $nominal,
-                                    'jumlah_dibayar' => 0,
-                                    'status' => 'belum'
-                                ]);
-                            }
-                            break;
-
-                        case 'Tahunan':
-                        case 'Bebas':
-                            Tagihan::create([
-                                'siswa_id' => $siswaId,
-                                'jenis_pembayaran_id' => $jenisPembayaran->id,
-                                'tahun_ajaran_id' => $request->tahun_ajaran_id,
-                                'bulan' => null,
-                                'nominal' => $nominal,
-                                'jumlah_dibayar' => 0,
-                                'status' => 'belum'
-                            ]);
-                            break;
-                    }
-                }
-            }
-        }
-
-        return redirect()->route('yayasan.laporan.tagihan.create')->with('success', 'Tagihan berhasil dibuat.');
-    }
-
-    // Rincian Tagihan Siswa
-    public function show(Request $request, $siswaId)
-    {
-        $siswa = Siswa::findOrFail($siswaId);
-        $unitPendidikanId = $siswa->unitpendidikan_id;  // Mengambil ID unit pendidikan siswa
-
-        // Menyesuaikan jenis pembayaran berdasarkan unit pendidikan
-        $jenisPembayaranList = JenisPembayaran::where('idunitpendidikan', $unitPendidikanId)->get();
-
-        // Query untuk tagihan siswa
-        $query = Tagihan::where('siswa_id', $siswaId);
-
-        // Filter berdasarkan jenis pembayaran
-        if ($request->has('jenis_pembayaran') && $request->jenis_pembayaran) {
-            $query->where('jenis_pembayaran_id', $request->jenis_pembayaran);
-        }
-
-        // Filter berdasarkan status
-        if ($request->has('status') && $request->status) {
-            $query->where('status', $request->status);
-        }
-
-        $perPage = $request->input('perPage', 15);
-        $tagihans = $query->paginate($perPage)->withQueryString();
-
-        return view('yayasan.laporan.tagihan.show', compact('siswa', 'tagihans', 'jenisPembayaranList'));
-    }
-
+    /**
+     * Get semua jenis pembayaran
+     */
     public function getJenisPembayaran(Request $request)
     {
         $unitId = $request->query('unit_id');
@@ -440,6 +340,9 @@ class LapTagihanController extends Controller
         return response()->json($data);
     }
 
+    /**
+     * Get semua siswan
+     */
     public function getSiswa(Request $request)
     {
         $unitId = $request->query('unit_id');
@@ -457,29 +360,9 @@ class LapTagihanController extends Controller
         return response()->json($data);
     }
 
-    public function cetak(Request $request, Siswa $siswa)
-    {
-        $jenisPembayaranFilter = $request->get('jenis_pembayaran');
-
-        $query = Tagihan::with('jenisPembayaran', 'tahunAjaran')
-            ->where('siswa_id', $siswa->id);
-
-        if ($jenisPembayaranFilter) {
-            $query->where('jenis_pembayaran_id', $jenisPembayaranFilter);
-        }
-
-        $tagihans = $query->get();
-
-        $totalTagihan = $tagihans->sum('nominal');
-        $totalDibayar = $tagihans->sum('jumlah_dibayar');
-        $sisaTagihan = $totalTagihan - $totalDibayar;
-
-        $pdf = Pdf::loadView('yayasan.laporan.tagihan.cetak', compact('siswa', 'tagihans', 'totalTagihan', 'totalDibayar', 'sisaTagihan'))
-            ->setPaper('A4', 'portrait');
-
-        return $pdf->stream("Kwitansi_{$siswa->nama}.pdf");
-    }
-
+    /**
+     * Get semua kelas by unit
+     */
     public function getKelasByUnit(Request $request)
     {
         $unitId = $request->get('unit_id');
@@ -493,6 +376,9 @@ class LapTagihanController extends Controller
         return response()->json($kelas);
     }
 
+    /**
+     * Get semua nominal by jenis pembayran
+     */
     public function getNominalJenisPembayaran(Request $request)
     {
         $id = $request->get('id');
@@ -503,74 +389,5 @@ class LapTagihanController extends Controller
         }
 
         return response()->json(['nominal' => $jenis->nominal_jenispembayaran]);
-    }
-
-    public function cetakKwitansi(Tagihan $tagihan)
-    {
-        if ($tagihan->status !== 'lunas') {
-            abort(403, 'Tagihan belum lunas');
-        }
-
-        $siswa = $tagihan->siswa; // pastikan relasi siswa ada
-        $jenisPembayaran = $tagihan->jenisPembayaran;
-        $tahunAjaran = $tagihan->tahunAjaran;
-
-        $pdf = Pdf::loadView('yayasan.laporan.tagihan.kwitansi', compact('tagihan', 'siswa', 'jenisPembayaran', 'tahunAjaran'))
-            ->setPaper('A5', 'landscape');
-
-        return $pdf->stream("Kwitansi_{$siswa->nama}_{$tagihan->id}.pdf");
-    }
-
-    public function cetakMultipleKwitansi(Request $request)
-    {
-        $ids = $request->input('tagihan_ids', []);
-
-        if (empty($ids)) {
-            return redirect()->back()->with('error', 'Tidak ada tagihan yang dipilih.');
-        }
-
-        $tagihans = Tagihan::with(['siswa', 'jenisPembayaran', 'tahunAjaran'])
-            ->whereIn('id', $ids)
-            ->where('status', 'lunas')
-            ->get();
-
-        if ($tagihans->isEmpty()) {
-            return redirect()->back()->with('error', 'Tagihan tidak valid atau belum lunas.');
-        }
-
-        $pdf = Pdf::loadView('yayasan.laporan.tagihan.kwitansi-multiple', compact('tagihans'))
-            ->setPaper('A5', 'portrait');
-
-        return $pdf->stream('kwitansi-multiple.pdf');
-    }
-
-    public function exportExcel(Request $request, $siswaId)
-    {
-        // Filter data yang ingin diexport, seperti di method show sebelumnya
-        $siswa = Siswa::findOrFail($siswaId);
-        $tagihans = Tagihan::where('siswa_id', $siswaId)
-            ->with('jenisPembayaran', 'tahunAjaran')
-            ->get();
-
-        return Excel::download(new TagihanExport($tagihans), 'tagihan_siswa.xlsx');
-    }
-    public function exportAll(Request $request)
-    {
-        $unit = $request->get('unit');
-        $kelas = $request->get('kelas');
-
-        $query = Siswa::with(['kelas', 'unitPendidikan', 'tagihan']);
-
-        if ($unit) {
-            $query->where('unitpendidikan_id', $unit);
-        }
-
-        if ($kelas) {
-            $query->where('kelas_id', $kelas);
-        }
-
-        $siswas = $query->get();
-
-        return Excel::download(new TagihanSiswaExport($siswas), 'daftar_tagihan_siswa.xlsx');
     }
 }
