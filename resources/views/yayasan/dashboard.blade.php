@@ -1,9 +1,20 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <x-layout-yayasan>
-<x-slot name="header">
+   <style>
+    body {
+        overflow-x: hidden;
+    }
+</style>
 
-</x-slot>
+<div class="sticky top-0 z-50 h-12 bg-green-800 px-4 shadow mb-4 flex items-center">
+    <!-- Logo Aplikasi -->
+    <img src="{{ asset('images/logo-yysn.png') }}" alt="Application Logo" class="h-5 mr-3">
+
+    <div class="text-white text-sm">
+        Yayasan Nurul Huda
+    </div>
+</div>
 <div class="mx-auto mt-10 px-6" style="max-width: 1200px">
     @if(!empty($tahunAjaranAktifList))
         <div class="mb-4 text-sm text-gray-600">
@@ -115,13 +126,16 @@
     </a>
 
 </form> --}}
-
+   {{-- <td class="sticky left-0 z-20 bg-white border-r px-4 py-2 min-w-[50px] text-center">{{ ($siswas->currentPage() - 1) * $siswas->perPage() + $loop->iteration }}</td>
+                            <td class="sticky left-[50px] bg-white border-r px-4 py-2 min-w-[120px]">{{ $siswa->nis }}</td>
+                            <td class="sticky left-[170px] z-20 bg-white border-r px-4 py-2 min-w-[180px]">{{ $siswa->nama }}</td>
+                            <td class="sticky left-[350px] z-20 bg-white border-r px-4 py-2 min-w-[180px]"> --}}
 
         <div class="overflow-x-auto">
         <table class="min-w-full bg-white border border-gray-300 text-sm rounded-lg shadow-sm border-collapse">
                 <thead class="bg-gray-200 text-gray-700 ">
                     <tr>
-                        <th class="py-3 px-4 border border-gray-300">Unit Pendidikan</th>
+                        <th class="sticky left-0 z-20 py-3 px-4 bg-gray-300 border-r border-gray-300 px-4 py-2 min-w-[50px] text-center">Unit Pendidikan</th>
                         <th class="py-3 px-4 border border-gray-300 bg-green-300">Total Tabungan Masuk</th>
                         <th class="py-3 px-4 border border-gray-300 bg-green-300">Total Tabungan Keluar</th>
                         <th class="py-3 px-4 border border-gray-300 bg-green-300">Total Tabungan Akhir</th>
@@ -152,7 +166,7 @@
                     @if(isset($keuanganPerUnit) && count($keuanganPerUnit) > 0)
                     @foreach ($keuanganPerUnit as $data)
                     <tr>
-                        <td class="border px-4 py-2">
+                        <td class="sticky left-0 z-20 py-3 px-4 bg-gray-100 border-r border-gray-300 px-4 py-2 min-w-[50px] text-center">
                             {{ $unitNames[$data->unitpendidikan->id ?? null] ?? 'Unit Tidak Ditemukan' }}
                         </td>
                         <td class="border px-4 py-2 text-center text-green-700 bg-green-100 ">Rp
@@ -204,7 +218,7 @@
                 @if(isset($keuanganPerUnit) && count($keuanganPerUnit) > 0)
                 <tfoot class="bg-gray-50">
                     <tr>
-                        <th class="border px-4 py-2 font-bold text-gray-800">Total Keseluruhan</th>
+                        <th class="sticky left-0 z-20 py-3 px-4 bg-gray-100 border-r border-gray-300 px-4 py-2 min-w-[50px] text-center">Total Keseluruhan</th>
                         <th class="border px-4 py-2 text-center font-bold text-green-700 bg-green-100">
                             Rp {{ number_format(collect($keuanganPerUnit)->sum('total_saldo_masuk'), 0, ',', '.') }}
                         </th>

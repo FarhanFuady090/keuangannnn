@@ -54,7 +54,7 @@
                     <canvas id="resonanceChart"></canvas>
                 </div>
                 <div class="flex-1 bg-white p-6 rounded-lg shadow-xl">
-                    <p class="text-lg font-semibold mb-4 text-gray-800">Top 5 Unit Formal by Siswa</p>
+                    <p class="text-lg font-semibold mb-4 text-gray-800">Top 4 Unit Formal by Siswa</p>
                     <table class="min-w-full text-sm">
                         <thead class="bg-gray-200 text-gray-700">
                             <tr>
